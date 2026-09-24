@@ -1,0 +1,12 @@
+{
+  "name": "ペンギン・アイスラン ストーリー",
+  "short_name": "アイスラン",
+  "description": "こおりの上をすべって、ジャンプ！ はぐれたなかまをさがす99レベルのぼうけん。",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#061225",
+  "theme_color": "#0B1E3A",
+  "icons": []
+}
