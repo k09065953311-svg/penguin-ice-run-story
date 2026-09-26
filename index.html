@@ -234,6 +234,8 @@ body {
 #dexBtn { left: calc(var(--u) * 84); }
 #mute { right: calc(var(--u) * 12); }
 .topbtn:focus-visible { outline: 3px solid #E6483D; outline-offset: 2px; }
+/* プレイ中は、ひょうじ(LEVEL・きょり)にかさなるので実績・なかまボタンをかくす */
+#stage.playing #achBtn, #stage.playing #dexBtn { display: none; }
 
 .ovpanel {
   position: absolute; inset: 0;
@@ -311,6 +313,45 @@ body {
 .companion-line { font-size: calc(var(--u) * 13.5); color: #3F6EA5; font-weight: 800; margin: 0 0 calc(var(--u) * 14); }
 .crowd { display: flex; flex-wrap: wrap; justify-content: center; gap: calc(var(--u) * 5); margin: calc(var(--u) * 8) 0 calc(var(--u) * 12); max-height: calc(var(--u) * 160); overflow-y: auto; }
 .crowd .av { width: calc(var(--u) * 22); height: calc(var(--u) * 22); border-radius: 50%; display: grid; place-items: center; font-size: calc(var(--u) * 11); }
+
+/* モードえらび・エンドレス・ランキング */
+.modebtn {
+  display: block; width: 100%; box-sizing: border-box;
+  margin: calc(var(--u) * 8) 0 0;
+  padding: calc(var(--u) * 11) calc(var(--u) * 14);
+  border: 0; border-radius: calc(var(--u) * 16);
+  background: #4FA8E8; color: #fff;
+  font: inherit; font-weight: 800; font-size: calc(var(--u) * 17);
+  cursor: pointer; pointer-events: auto;
+  box-shadow: 0 calc(var(--u) * 4) 0 rgba(16, 40, 74, 0.28);
+}
+.modebtn small { display: block; margin-top: calc(var(--u) * 2); font-size: calc(var(--u) * 11); font-weight: 800; opacity: 0.9; }
+.modebtn.endless { background: #E6483D; }
+.modebtn.rank { background: #F2A900; color: #10284A; }
+.modebtn:focus-visible, .go:focus-visible, .achclose:focus-visible { outline: 3px solid #10284A; outline-offset: 2px; }
+.backbtn { display: block; margin: calc(var(--u) * 10) auto 0; }
+.namebox { margin: calc(var(--u) * 8) 0 calc(var(--u) * 6); text-align: left; }
+.namebox label { display: block; font-weight: 800; font-size: calc(var(--u) * 12); color: #3F6EA5; margin-bottom: calc(var(--u) * 4); }
+#nameInput {
+  display: block; width: 100%; box-sizing: border-box;
+  padding: calc(var(--u) * 9) calc(var(--u) * 12);
+  border: calc(var(--u) * 2) solid #9CC7F0; border-radius: calc(var(--u) * 12);
+  background: #fff; color: #10284A;
+  font: inherit; font-weight: 800; font-size: max(16px, calc(var(--u) * 15));
+  user-select: text; -webkit-user-select: text; touch-action: manipulation;
+}
+#nameInput:focus { outline: 3px solid #E6483D; outline-offset: 1px; }
+#rankInfo { min-height: calc(var(--u) * 18); margin: 0 0 calc(var(--u) * 8); font-weight: 800; font-size: calc(var(--u) * 13); color: #3F6EA5; }
+#rankInfo.ok { color: #B5860B; }
+.rankstat { font-size: calc(var(--u) * 12); color: #6A7A9A; font-weight: 800; margin-bottom: calc(var(--u) * 8); min-height: calc(var(--u) * 16); }
+.rankrow { display: flex; align-items: center; gap: calc(var(--u) * 8); padding: calc(var(--u) * 7) calc(var(--u) * 10); margin-bottom: calc(var(--u) * 5); border-radius: calc(var(--u) * 12); background: #fff; text-align: left; }
+.rankrow.me { background: #FFE9A8; outline: calc(var(--u) * 2) solid #F2A900; }
+.rankrow .no { flex: none; width: calc(var(--u) * 30); text-align: center; font-weight: 800; font-size: calc(var(--u) * 14); color: #3F6EA5; }
+.rankrow .nm { flex: 1; min-width: 0; font-weight: 800; font-size: calc(var(--u) * 13); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rankrow .sc { flex: none; text-align: right; font-weight: 800; font-size: calc(var(--u) * 14); }
+.rankrow .sc span { display: block; font-size: calc(var(--u) * 10); color: #6A7A9A; }
+.rankbtns { display: flex; justify-content: center; gap: calc(var(--u) * 8); margin-top: calc(var(--u) * 8); }
+.rankbtns .achclose { margin: 0; }
 </style>
 </head>
 <body>
@@ -318,8 +359,8 @@ body {
   <canvas id="game" aria-label="ペンギンのジャンプゲームの画面"></canvas>
 
   <div id="hud" hidden>
-    <span class="pill lvbadge">LEVEL<b id="curLv">1</b></span>
-    <span class="pill">きょり<b id="dist">0</b>/<b id="goalM">0</b>m</span>
+    <span class="pill lvbadge"><span id="lvLabel">LEVEL</span><b id="curLv">1</b></span>
+    <span class="pill">きょり<b id="dist">0</b><span id="goalWrap">/<b id="goalM">0</b></span>m</span>
     <span class="pill">スコア<b id="score">0</b></span>
     <span class="pill">🐟<b id="fishRun">0</b></span>
     <span class="pill">スピード<b id="lv">1</b></span>
@@ -335,25 +376,56 @@ body {
   <button id="dexBtn" class="topbtn" type="button">🐧 なかま</button>
   <button id="mute" class="topbtn" type="button" aria-label="効果音のオンオフ">音 オン</button>
 
-  <div id="map" class="panel">
+  <div id="menu" class="panel">
     <h1>ペンギン・アイスラン</h1>
-    <p class="sub">はぐれたなかまをさがす、こおりの大ぼうけん</p>
+    <p class="sub">あそぶモードをえらんでね</p>
     <div class="skinrow" id="skinRow"></div>
+    <button class="modebtn" id="btnStory" type="button">📖 ストーリーモード<small id="menuStoryStat">0 / 99 クリア</small></button>
+    <button class="modebtn endless" id="btnEndless" type="button">♾️ エンドレスモード<small id="menuEndlessStat">ベスト 0</small></button>
+    <button class="modebtn rank" id="btnMenuRank" type="button">🏆 ランキング</button>
+  </div>
+
+  <div id="endless" class="panel" hidden>
+    <h2>エンドレスモード</h2>
+    <p class="sub">ゴールなし！ どこまで走れるかにちょうせん</p>
+    <ul class="rules">
+      <li>きょりがのびるほど、どんどんむずかしくなるよ</li>
+      <li>スコアは、みんなのランキングにのるよ</li>
+    </ul>
+    <div class="scores"><div><span class="lbl">ベストスコア</span><span class="num" id="eBest">0</span></div><div><span class="lbl">ベストきょり</span><span class="num"><span id="eBestDist">0</span>m</span></div></div>
+    <div class="namebox">
+      <label for="nameInput">ランキングにのせるなまえ(10もじまで)</label>
+      <input id="nameInput" type="text" maxlength="10" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="ななし">
+    </div>
+    <div>
+      <button class="go" id="btnEndlessStart" type="button">スタート</button>
+      <button class="go ghost" id="btnEndlessRank" type="button">🏆 ランキング</button>
+    </div>
+    <button class="go ghost backbtn" id="btnEndlessBack" type="button">もどる</button>
+  </div>
+
+  <div id="map" class="panel" hidden>
+    <h1>ストーリー</h1>
+    <p class="sub">はぐれたなかまをさがす、こおりの大ぼうけん</p>
     <p class="mapstat" id="mapStat">0 / 99 クリア</p>
     <div id="mapList"></div>
+    <button class="go ghost backbtn" id="btnMapBack" type="button">モードえらびへ</button>
   </div>
 
   <div id="fail" class="panel" hidden>
     <h2 id="failTitle">ゲームオーバー</h2>
     <div class="scores">
       <div><span class="lbl">スコア</span><span class="num" id="fScore">0</span></div>
-      <div><span class="lbl">きょり</span><span class="num"><span id="fDist">0</span>/<span id="fGoal">0</span>m</span></div>
+      <div><span class="lbl">きょり</span><span class="num"><span id="fDist">0</span><span id="fGoalWrap">/<span id="fGoal">0</span></span>m</span></div>
       <div><span class="lbl">🐟</span><span class="num" id="fFish">0</span></div>
       <div><span class="lbl">ベストコンボ</span><span class="num" id="fCombo">0</span></div>
     </div>
+    <p id="newrec" hidden></p>
+    <p id="rankInfo" hidden></p>
     <p id="newAch" hidden></p>
     <div>
       <button class="go" id="btnRetry" type="button">もういちど</button>
+      <button class="go ghost" id="btnFailRank" type="button" hidden>🏆 ランキング</button>
       <button class="go ghost" id="btnFailMap" type="button">ちずへ</button>
     </div>
   </div>
@@ -384,6 +456,18 @@ body {
       <p class="stat" id="achStat">0 / 0 達成</p>
       <div class="achlist" id="achList"></div>
       <button class="achclose" id="achClose" type="button">とじる</button>
+    </div>
+  </div>
+
+  <div id="rankPanel" class="ovpanel" hidden>
+    <div class="card">
+      <h2>🏆 エンドレス ランキング</h2>
+      <p class="rankstat" id="rankStat"></p>
+      <div id="rankList"></div>
+      <div class="rankbtns">
+        <button class="achclose" id="rankReload" type="button">こうしん</button>
+        <button class="achclose" id="rankClose" type="button">とじる</button>
+      </div>
     </div>
   </div>
 
@@ -420,6 +504,18 @@ body {
   const EGG_CHANCE = 0.05;
   const EGG_MIN_DIST = 380;
   const INVINCIBLE_TIME = 1.3;
+
+  // エンドレスモード: 何mごとに難しさ(レベル)が1上がるか(レベル99まで)
+  const ENDLESS_M_PER_LV = 20;
+  // 背景(時間帯・章)を切りかえるきょり(m)
+  const ENDLESS_SCENE_M = 150;
+
+  // オンラインランキングの保存先(Firebase Realtime Database の URL)。
+  // 例: 'https://あなたのプロジェクト名-default-rtdb.firebaseio.com'
+  // 空のままだと、この端末のベストだけが表示されます。設定のしかたは RANKING_SETUP.md を見てください。
+  const RANKING_DB_URL = 'https://penguin-ice-run-73f83-default-rtdb.asia-southeast1.firebasedatabase.app';
+  const RANK_LIMIT = 100;   // ランキングに表示する人数
+  const NAME_MAX = 10;      // なまえの最大もじ数
   /* ================================================================================ */
 
   // スマホ縦画面版: たて長のキャンバス(はば440×たかさ780)。もとの横画面版(800×450)と
@@ -495,7 +591,8 @@ body {
 
   /* ---------- 永続データ ---------- */
   function loadProgress() {
-    let p = { totalFish: 0, bestCombo: 0, totalFlaps: 0, revives: 0, unlocked: {}, skin: 'normal', clearedLevels: {}, companions: {}, levelScores: {} };
+    let p = { totalFish: 0, bestCombo: 0, totalFlaps: 0, revives: 0, unlocked: {}, skin: 'normal', clearedLevels: {}, companions: {}, levelScores: {},
+      endlessBest: { score: 0, dist: 0 }, endlessSent: 0, endlessSentName: '', playerName: '', deviceId: '' };
     try {
       const raw = JSON.parse(localStorage.getItem('penguin-story-progress'));
       if (raw && typeof raw === 'object') {
@@ -503,7 +600,8 @@ body {
           unlocked: Object.assign({}, raw.unlocked),
           clearedLevels: Object.assign({}, raw.clearedLevels),
           companions: Object.assign({}, raw.companions),
-          levelScores: Object.assign({}, raw.levelScores)
+          levelScores: Object.assign({}, raw.levelScores),
+          endlessBest: Object.assign({ score: 0, dist: 0 }, raw.endlessBest)
         });
       }
     } catch (e) { /* 保存できない環境でも遊べます */ }
@@ -525,7 +623,8 @@ body {
 
   /* ---------- 状態 ---------- */
   let k = 1, tt = 0;
-  let phase = 'map'; // map | play | dying | fail | story | finale
+  let phase = 'menu'; // menu | map | play | dying | fail | story | finale
+  let mode = 'story'; // story | endless
   let paused = false;
   let curLevel = 1, curGoal = 60;
   let speed = 250, spdLv = 1, distance = 0, cleared = 0, scroll = 0;
@@ -547,6 +646,10 @@ body {
   const achBtn = $('achBtn'), achPanel = $('achPanel'), achClose = $('achClose'), achList = $('achList'), achStat = $('achStat');
   const dexBtn = $('dexBtn'), dexPanel = $('dexPanel'), dexClose = $('dexClose'), dexGrid = $('dexGrid'), dexStat = $('dexStat');
   const skinRowEl = $('skinRow'), mapListEl = $('mapList'), mapStatEl = $('mapStat');
+  const menuEl = $('menu'), endlessEl = $('endless'), nameInput = $('nameInput');
+  const rankPanel = $('rankPanel'), rankList = $('rankList'), rankStat = $('rankStat');
+  const rankInfoEl = $('rankInfo'), newrecEl = $('newrec');
+  const lvLabelEl = $('lvLabel'), goalWrapEl = $('goalWrap'), fGoalWrapEl = $('fGoalWrap');
 
   for (let i = 0; i < 70; i++) snow.push({ x: Math.random() * W, y: Math.random() * H, r: 1 + Math.random() * 2.2, s: 20 + Math.random() * 40, ph: Math.random() * 6 });
 
@@ -699,18 +802,58 @@ body {
     if (L) startLevel(L);
   });
 
-  function showMap() {
-    phase = 'map';
+  // モードえらび・エンドレス開始画面・ちず・ゲームオーバーなど、ゲーム外の画面をぜんぶ閉じる
+  function hideAllPanels() {
+    stage.classList.remove('playing');
     hudEl.hidden = true;
+    menuEl.hidden = true;
+    endlessEl.hidden = true;
+    mapEl.hidden = true;
     failEl.hidden = true;
     storyEl.hidden = true;
     finaleEl.hidden = true;
     chipWing.hidden = true; chipCombo.hidden = true; chipEgg.hidden = true;
     hintEl.hidden = true;
+  }
+
+  function showMenu() {
+    phase = 'menu';
+    mode = 'story';
+    rankReq++;
+    hideAllPanels();
     renderSkinRow();
+    $('menuStoryStat').textContent = clearedCount() + ' / ' + TOTAL_LEVELS + ' クリア';
+    $('menuEndlessStat').textContent = 'ベスト ' + progress.endlessBest.score + '(' + progress.endlessBest.dist + 'm)';
+    menuEl.hidden = false;
+  }
+
+  function showMap() {
+    phase = 'map';
+    mode = 'story';
+    hideAllPanels();
     renderMap();
     mapEl.hidden = false;
   }
+
+  function showEndlessStart() {
+    phase = 'menu';
+    hideAllPanels();
+    $('eBest').textContent = progress.endlessBest.score;
+    $('eBestDist').textContent = progress.endlessBest.dist;
+    nameInput.value = progress.playerName || '';
+    endlessEl.hidden = false;
+  }
+
+  $('btnStory').addEventListener('click', showMap);
+  $('btnEndless').addEventListener('click', showEndlessStart);
+  $('btnMenuRank').addEventListener('click', () => openRanking());
+  $('btnMapBack').addEventListener('click', showMenu);
+  $('btnEndlessBack').addEventListener('click', showMenu);
+  $('btnEndlessRank').addEventListener('click', () => { saveNameFromInput(); openRanking(); });
+  $('btnEndlessStart').addEventListener('click', () => { saveNameFromInput(); startEndless(); });
+  nameInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); nameInput.blur(); saveNameFromInput(); startEndless(); }
+  });
 
   /* ---------- 地形(坂・われた氷) ---------- */
   function groundOffsetAt(x) {
@@ -763,7 +906,11 @@ body {
     sinceLast = 0; nextGap = 420;
     terrainSinceLast = 0; terrainNextGap = 0;
     score = 0; combo = 0; fishRun = 0; hasEgg = false; invincibleT = 0; slowT = 0; fellInSea = false;
-    goalLineX = PX0 + curGoal * 50;
+    if (mode === 'endless') curGoal = Infinity;   // エンドレスにはゴールがない
+    goalLineX = curGoal === Infinity ? Infinity : PX0 + curGoal * 50;
+    lvLabelEl.textContent = mode === 'endless' ? 'ENDLESS' : 'LEVEL';
+    curLvEl.hidden = mode === 'endless';
+    goalWrapEl.hidden = mode === 'endless';
     newlyUnlockedThisRun = [];
     Object.assign(P, { x: PX0, vx: 0, h: 0, vh: 0, ground: true, flapUsed: false, coyote: 0, buffer: 0, flapT: 0, spin: 0, landT: 0 });
     holding = false;
@@ -772,17 +919,32 @@ body {
     chipWing.hidden = true; chipCombo.hidden = true; chipEgg.hidden = true;
     shake = 0;
   }
-  function startLevel(L) {
-    ensureAudio();
-    resetLevel(L);
+  function beginRun() {
     phase = 'play';
-    mapEl.hidden = true;
-    failEl.hidden = true;
-    storyEl.hidden = true;
-    finaleEl.hidden = true;
+    rankReq++;
+    hideAllPanels();
+    stage.classList.add('playing');
     hudEl.hidden = false;
     bannerEl.className = '';
     showHint('長くおすと、高くとべるよ！', 2.4);
+  }
+  function startLevel(L) {
+    ensureAudio();
+    mode = 'story';
+    resetLevel(L);
+    beginRun();
+  }
+  function startEndless() {
+    ensureAudio();
+    mode = 'endless';
+    resetLevel(1);
+    beginRun();
+  }
+  // エンドレスの難しさ: 走ったきょりに合わせてレベル1〜99ぶんまで上がる
+  function endlessLevelAt(m) { return Math.min(TOTAL_LEVELS, 1 + Math.floor(m / ENDLESS_M_PER_LV)); }
+  // 背景に使うレベル。ストーリーは今のレベル、エンドレスは一定きょりごとに景色がかわる
+  function sceneLevel() {
+    return mode === 'endless' ? (Math.floor(meters() / ENDLESS_SCENE_M) * 3) % TOTAL_LEVELS + 1 : curLevel;
   }
   function die() {
     phase = 'dying';
@@ -812,8 +974,11 @@ body {
   function failLevel() {
     phase = 'fail';
     $('failTitle').textContent = fellInSea ? '海におちちゃった…' : 'ゲームオーバー';
-    const best = Math.max(progress.levelScores[curLevel] || 0, score);
-    progress.levelScores[curLevel] = best;
+    const endless = mode === 'endless';
+    if (!endless) {
+      const best = Math.max(progress.levelScores[curLevel] || 0, score);
+      progress.levelScores[curLevel] = best;
+    }
     saveProgress();
     unlockIfMet('dist10', clearedCount() >= 0 && (progress.unlocked.dist10 || meters() >= 10));
     $('fScore').textContent = score;
@@ -829,10 +994,33 @@ body {
     hudEl.hidden = true;
     chipWing.hidden = true; chipCombo.hidden = true; chipEgg.hidden = true;
     hintEl.hidden = true;
+
+    stage.classList.remove('playing');
+    // エンドレス用の表示(ゴールなし・ベスト更新・ランキング)
+    fGoalWrapEl.hidden = endless;
+    $('btnFailRank').hidden = !endless;
+    $('btnFailMap').textContent = endless ? 'メニューへ' : 'ちずへ';
+    newrecEl.hidden = true;
+    rankInfoEl.hidden = true;
+    if (endless) {
+      $('failTitle').textContent = fellInSea ? '海におちちゃった…' : 'ゲームオーバー';
+      const prev = progress.endlessBest.score;
+      if (score > prev) {
+        progress.endlessBest = { score: score, dist: meters() };
+        saveProgress();
+        newrecEl.textContent = prev > 0 ? '🎉 ベストスコア こうしん！' : '🎉 はじめての記録！';
+        newrecEl.hidden = false;
+      } else {
+        newrecEl.textContent = 'ベスト ' + prev + '(' + progress.endlessBest.dist + 'm)';
+        newrecEl.hidden = false;
+      }
+      showRunRank();
+    }
     failEl.hidden = false;
   }
-  function retryLevel() { startLevel(curLevel); }
-  function goMapFromFail() { showMap(); }
+  function retryLevel() { if (mode === 'endless') startEndless(); else startLevel(curLevel); }
+  function goMapFromFail() { if (mode === 'endless') showMenu(); else showMap(); }
+  $('btnFailRank').addEventListener('click', () => openRanking());
 
   function levelClear() {
     const firstClear = !progress.clearedLevels[curLevel];
@@ -888,6 +1076,135 @@ body {
   $('btnStoryNext').addEventListener('click', storyContinue);
   $('btnFinaleNext').addEventListener('click', finaleContinue);
 
+  /* ---------- エンドレスのオンラインランキング ----------
+     Firebase Realtime Database の REST API を使います(SDKなし)。
+     1台につき1件(scores/{端末ID})だけ保存し、その端末の自己ベストだけを上書きします。 */
+  let rankReq = 0, panelReq = 0;
+  const rankingEnabled = () => !!RANKING_DB_URL;
+  const rankBase = () => RANKING_DB_URL.replace(/\/+$/, '');
+  const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+  function sanitizeName(s) {
+    return Array.from(String(s || '').replace(/[\u0000-\u001f\u007f]/g, '').trim()).slice(0, NAME_MAX).join('').trim();
+  }
+  function playerName() { return sanitizeName(progress.playerName) || 'ななし'; }
+  function saveNameFromInput() { progress.playerName = sanitizeName(nameInput.value); saveProgress(); }
+  function deviceId() {
+    if (!progress.deviceId) {
+      let id = '';
+      try { id = crypto.randomUUID(); } catch (e) { id = ''; }
+      if (!id) id = [0, 1, 2, 3].map(() => Math.random().toString(36).slice(2, 10).padEnd(8, '0')).join('-');
+      progress.deviceId = id;
+      saveProgress();
+    }
+    return progress.deviceId;
+  }
+
+  async function rankFetch(url, opts) {
+    const ctl = new AbortController();
+    const timer = setTimeout(() => ctl.abort(), 8000);
+    try { return await fetch(url, Object.assign({ signal: ctl.signal, cache: 'no-store' }, opts)); }
+    finally { clearTimeout(timer); }
+  }
+
+  // ベストスコアをサーバーへ送る。'ok' 送信した / 'skip' 送るものがない / 'rejected' 受けつけられなかった / 'error' 通信失敗
+  async function flushPending() {
+    if (!rankingEnabled()) return 'skip';
+    const best = progress.endlessBest, name = playerName();
+    if (best.score <= 0) return 'skip';
+    if (progress.endlessSent >= best.score && progress.endlessSentName === name) return 'skip';
+    try {
+      const res = await rankFetch(rankBase() + '/scores/' + encodeURIComponent(deviceId()) + '.json', {
+        method: 'PUT',
+        body: JSON.stringify({ name: name, score: best.score, dist: best.dist })
+      });
+      if (res.ok) {
+        progress.endlessSent = best.score;
+        progress.endlessSentName = name;
+        saveProgress();
+        return 'ok';
+      }
+      return res.status === 401 || res.status === 403 ? 'rejected' : 'error';
+    } catch (e) { return 'error'; }
+  }
+
+  // 上位 RANK_LIMIT 人を取得して、スコアの高い順にならべて返す
+  async function fetchRanking() {
+    const url = rankBase() + '/scores.json?orderBy=' + encodeURIComponent('"score"') + '&limitToLast=' + RANK_LIMIT;
+    const res = await rankFetch(url);
+    if (!res.ok) throw new Error('http ' + res.status);
+    const data = await res.json();
+    const list = [];
+    if (data && typeof data === 'object') {
+      for (const id of Object.keys(data)) {
+        const v = data[id];
+        if (v && typeof v.score === 'number' && typeof v.name === 'string') {
+          list.push({ id: id, name: sanitizeName(v.name) || 'ななし', score: v.score, dist: typeof v.dist === 'number' ? v.dist : 0 });
+        }
+      }
+    }
+    list.sort((a, b) => b.score - a.score || b.dist - a.dist);
+    return list;
+  }
+
+  // ゲームオーバー画面: 送信して順位を表示する
+  async function showRunRank() {
+    const my = ++rankReq;
+    const show = (text, ok) => { rankInfoEl.textContent = text; rankInfoEl.className = ok ? 'ok' : ''; rankInfoEl.hidden = false; };
+    if (!rankingEnabled()) { show('オンラインランキングは まだ設定されていません'); return; }
+    if (progress.endlessBest.score <= 0) return;
+    show('🏆 ランキングに送信中…');
+    const sent = await flushPending();
+    let list = null;
+    try { list = await fetchRanking(); } catch (e) { list = null; }
+    if (my !== rankReq || phase !== 'fail') return;
+    if (!list) { show('ランキングにつながりませんでした(あとで自動でおくります)'); return; }
+    if (sent === 'rejected') { show('ランキングに のせられませんでした'); return; }
+    const idx = list.findIndex((e) => e.id === deviceId());
+    if (idx >= 0) show('🏆 ランキング ' + (idx + 1) + '位！', true);
+    else show('ランキングけんがい(' + RANK_LIMIT + '位まで表示)');
+  }
+
+  function renderRankRows(list, showEmpty) {
+    const me = progress.deviceId;
+    const medal = ['🥇', '🥈', '🥉'];
+    let html = list.map((e, i) =>
+      '<div class="rankrow' + (e.id === me ? ' me' : '') + '"><span class="no">' + (medal[i] || (i + 1)) + '</span>' +
+      '<span class="nm">' + esc(e.name) + (e.id === me ? '(あなた)' : '') + '</span>' +
+      '<span class="sc">' + e.score + '<span>' + e.dist + 'm</span></span></div>').join('');
+    if (!list.length && showEmpty !== false) html = '<p class="rankstat">まだだれもいないよ。いちばんのりをめざそう！</p>';
+    const mine = progress.endlessBest;
+    if (mine.score > 0 && !list.some((e) => e.id === me)) {
+      html += '<div class="rankrow me"><span class="no">—</span><span class="nm">' + esc(playerName()) + '(あなた)</span>' +
+        '<span class="sc">' + mine.score + '<span>' + mine.dist + 'm</span></span></div>';
+    }
+    rankList.innerHTML = html;
+  }
+
+  async function loadRanking() {
+    const my = ++panelReq;
+    rankList.innerHTML = '';
+    if (!rankingEnabled()) {
+      rankStat.textContent = 'オンラインランキングは まだ設定されていません。この端末のベストだけ表示しています。';
+      renderRankRows([], false);
+      return;
+    }
+    rankStat.textContent = 'よみこみ中…';
+    await flushPending();
+    try {
+      const list = await fetchRanking();
+      if (my !== panelReq) return;
+      rankStat.textContent = 'スコアの高い順(上位' + RANK_LIMIT + '人)';
+      renderRankRows(list, true);
+    } catch (e) {
+      if (my !== panelReq) return;
+      rankStat.textContent = 'つうしんできませんでした。電波をたしかめて「こうしん」をおしてね。';
+    }
+  }
+  function openRanking() { rankPanel.hidden = false; loadRanking(); }
+  $('rankReload').addEventListener('click', loadRanking);
+  $('rankClose').addEventListener('click', () => { rankPanel.hidden = true; panelReq++; });
+
   /* ---------- 入力 ---------- */
   function jump() {
     P.vh = V_JUMP;
@@ -911,7 +1228,7 @@ body {
   }
   function press() {
     ensureAudio();
-    if (!achPanel.hidden || !dexPanel.hidden) return;
+    if (!achPanel.hidden || !dexPanel.hidden || !rankPanel.hidden) return;
     if (paused) { setPause(false); return; }
     if (phase === 'story') { storyContinue(); return; }
     if (phase === 'finale') { finaleContinue(); return; }
@@ -926,9 +1243,11 @@ body {
   function setPause(v) { paused = v; pauseEl.hidden = !v; }
 
   stage.addEventListener('pointerdown', (e) => {
-    if (!achPanel.hidden || !dexPanel.hidden) return;
-    if (e.target.closest && e.target.closest('button')) return;
-    if (phase === 'map') return;
+    if (!achPanel.hidden || !dexPanel.hidden || !rankPanel.hidden) return;
+    if (e.target.closest && e.target.closest('button, input')) return;
+    if (phase === 'map' || phase === 'menu') return;
+    // エンドレスのゲームオーバー画面は、順位を読めるように画面のどこでも「もういちど」にはならない
+    if (phase === 'fail' && mode === 'endless' && e.target.closest && e.target.closest('.panel')) return;
     e.preventDefault();
     window.focus();
     press();
@@ -936,10 +1255,12 @@ body {
   window.addEventListener('pointerup', release);
   window.addEventListener('pointercancel', release);
   window.addEventListener('keydown', (e) => {
+    if (e.target && e.target.tagName === 'INPUT') return; // なまえ入力中はゲーム操作にしない
     if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') {
       e.preventDefault();
       if (!e.repeat) press();
     } else if ((e.code === 'KeyP' || e.code === 'Escape') && !e.repeat) {
+      if (!rankPanel.hidden) { rankPanel.hidden = true; panelReq++; return; }
       if (!achPanel.hidden) { achPanel.hidden = true; return; }
       if (!dexPanel.hidden) { dexPanel.hidden = true; return; }
       if (phase === 'play') setPause(!paused);
@@ -1077,6 +1398,7 @@ body {
     }
 
     if (phase === 'play') {
+      if (mode === 'endless') curLevel = endlessLevelAt(meters());
       // 坂のスピード効果(のぼりはおそく、くだりははやく)
       const ahead = groundOffsetAt(P.x + 34), here = groundOffsetAt(P.x - 34);
       const slope = ahead - here;
@@ -1256,7 +1578,8 @@ body {
 
   /* ---------- 描画:背景 ---------- */
   function currentPalette() {
-    const a = actOf(curLevel), pos = levelInAct(curLevel);
+    const sl = sceneLevel();
+    const a = actOf(sl), pos = levelInAct(sl);
     const ti = timeIndexOf(pos);
     return { time: TIME_PALETTES[ti], act: ACT_INFO[a - 1], ti: ti, actIdx: a - 1 };
   }
@@ -1761,10 +2084,14 @@ body {
   window.addEventListener('resize', resize);
   window.addEventListener('orientationchange', () => setTimeout(resize, 50));
   if (window.visualViewport) window.visualViewport.addEventListener('resize', resize);
-  document.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
+  // ゲーム画面のスクロールは止めるが、ランキングなどのリストはスクロールできるようにする
+  document.addEventListener('touchmove', (e) => {
+    if (e.target && e.target.closest && e.target.closest('.panel, .card')) return;
+    e.preventDefault();
+  }, { passive: false });
   document.addEventListener('gesturestart', (e) => e.preventDefault());
   resize();
-  showMap();
+  showMenu();
 
   let last = null;
   function frame(nowMs) {
