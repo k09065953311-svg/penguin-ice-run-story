@@ -1,6 +1,6 @@
 // ペンギン・アイスラン ストーリー: オフラインでも遊べるようにする簡易サービスワーカー
 // ゲームを更新したら、下の CACHE_NAME の数字を上げてください(古いキャッシュが消えます)。
-const CACHE_NAME = 'penguin-story-v2';
+const CACHE_NAME = 'penguin-story-v3';
 const ASSETS = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', (event) => {

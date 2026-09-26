@@ -84,10 +84,14 @@ body {
 .pill b { font-size: calc(var(--u) * 17); margin: 0 calc(var(--u) * 2); }
 .pill.trophy { background: rgba(255, 210, 63, 0.92); }
 .pill.lvbadge { background: rgba(255, 111, 216, 0.92); color: #fff; }
+.pill.best { background: rgba(255, 255, 255, 0.82); }
+.pill.best.beaten { background: rgba(255, 210, 63, 0.95); animation: bestpulse 0.9s ease-in-out infinite alternate; }
+@keyframes bestpulse { from { transform: scale(1); } to { transform: scale(1.08); } }
+@media (prefers-reduced-motion: reduce) { .pill.best.beaten { animation: none; } }
 
 #fx {
   position: absolute;
-  top: calc(var(--u) * 54);
+  top: calc(var(--u) * 96);   /* ひょうじ(HUD)が2だんになってもかさならない高さ */
   left: calc(var(--u) * 12);
   display: flex;
   flex-direction: column;
@@ -126,6 +130,13 @@ body {
 #banner.hot { color: #FF8A7E; }
 #banner.safe { color: #FF6FD8; }
 #banner.gold { color: #FFD23F; }
+#banner.rainbow {
+  background: linear-gradient(90deg, #FF5F6D, #FFC371, #FFF37A, #7BED9F, #70A1FF, #C56CF0);
+  -webkit-background-clip: text; background-clip: text;
+  color: transparent;
+  -webkit-text-stroke: calc(var(--u) * 1.5) rgba(16, 40, 74, 0.55);
+  text-shadow: none;
+}
 @keyframes pop {
   0% { transform: scale(0.5); opacity: 0; }
   70% { transform: scale(1.08); opacity: 1; }
@@ -341,8 +352,19 @@ body {
   user-select: text; -webkit-user-select: text; touch-action: manipulation;
 }
 #nameInput:focus { outline: 3px solid #E6483D; outline-offset: 1px; }
-#rankInfo { min-height: calc(var(--u) * 18); margin: 0 0 calc(var(--u) * 8); font-weight: 800; font-size: calc(var(--u) * 13); color: #3F6EA5; }
+#rankInfo { min-height: calc(var(--u) * 18); margin: 0 0 calc(var(--u) * 8); font-weight: 800; font-size: calc(var(--u) * 13); line-height: 1.5; color: #3F6EA5; white-space: pre-line; }
 #rankInfo.ok { color: #B5860B; }
+#rareInfo { margin: 0 0 calc(var(--u) * 6); font-weight: 800; font-size: calc(var(--u) * 12.5); color: #B5860B; }
+.ranktabs { display: flex; gap: calc(var(--u) * 6); margin: 0 0 calc(var(--u) * 8); }
+.ranktab {
+  flex: 1; padding: calc(var(--u) * 7) 0;
+  border: calc(var(--u) * 2) solid #9CC7F0; border-radius: 999px;
+  background: #fff; color: #3F6EA5;
+  font: inherit; font-weight: 800; font-size: calc(var(--u) * 13);
+  cursor: pointer;
+}
+.ranktab[aria-pressed="true"] { background: #10284A; border-color: #10284A; color: #fff; }
+.ranktab:focus-visible { outline: 3px solid #E6483D; outline-offset: 2px; }
 .rankstat { font-size: calc(var(--u) * 12); color: #6A7A9A; font-weight: 800; margin-bottom: calc(var(--u) * 8); min-height: calc(var(--u) * 16); }
 .rankrow { display: flex; align-items: center; gap: calc(var(--u) * 8); padding: calc(var(--u) * 7) calc(var(--u) * 10); margin-bottom: calc(var(--u) * 5); border-radius: calc(var(--u) * 12); background: #fff; text-align: left; }
 .rankrow.me { background: #FFE9A8; outline: calc(var(--u) * 2) solid #F2A900; }
@@ -363,12 +385,14 @@ body {
     <span class="pill">きょり<b id="dist">0</b><span id="goalWrap">/<b id="goalM">0</b></span>m</span>
     <span class="pill">スコア<b id="score">0</b></span>
     <span class="pill">🐟<b id="fishRun">0</b></span>
+    <span class="pill best" id="bestPill" hidden>ベスト<b id="bestNow">0</b></span>
     <span class="pill">スピード<b id="lv">1</b></span>
   </div>
   <div id="fx">
     <div class="chip" id="chipWing" style="--c:#FFD23F" hidden><span>つばさ ── 空中でもう一度ジャンプ！</span><i id="wingBar"></i></div>
     <div class="chip" id="chipCombo" style="--c:#FF6FD8" hidden><span id="comboTxt">コンボ ×2</span></div>
     <div class="chip" id="chipEgg" style="--c:#8FE9E0" hidden><span>🥚 たまご ── 1回だけ生きのびる</span></div>
+    <div class="chip" id="chipRainbow" style="--c:#C56CF0" hidden><span>🌈 レインボータイム ── スコア2倍！</span><i id="rainbowBar"></i></div>
   </div>
   <div id="hint" hidden></div>
   <div id="banner"></div>
@@ -420,6 +444,7 @@ body {
       <div><span class="lbl">🐟</span><span class="num" id="fFish">0</span></div>
       <div><span class="lbl">ベストコンボ</span><span class="num" id="fCombo">0</span></div>
     </div>
+    <p id="rareInfo" hidden></p>
     <p id="newrec" hidden></p>
     <p id="rankInfo" hidden></p>
     <p id="newAch" hidden></p>
@@ -462,6 +487,10 @@ body {
   <div id="rankPanel" class="ovpanel" hidden>
     <div class="card">
       <h2>🏆 エンドレス ランキング</h2>
+      <div class="ranktabs" role="group" aria-label="ランキングの種類">
+        <button class="ranktab" id="tabAll" type="button" aria-pressed="true">総合</button>
+        <button class="ranktab" id="tabDaily" type="button" aria-pressed="false">今日</button>
+      </div>
       <p class="rankstat" id="rankStat"></p>
       <div id="rankList"></div>
       <div class="rankbtns">
@@ -509,6 +538,13 @@ body {
   const ENDLESS_M_PER_LV = 20;
   // 背景(時間帯・章)を切りかえるきょり(m)
   const ENDLESS_SCENE_M = 150;
+  // エンドレスで、何mごとにお祝いを出すか
+  const ENDLESS_MILESTONE_M = 100;
+
+  // レア魚: 障害物が1つ出るたびの出現率(0.05 = 5%)と、得点、ふつうの魚何ひき分として数えるか
+  const GOLD_CHANCE = 0.05, GOLD_SCORE = 25, GOLD_FISH = 3;          // 金の魚
+  const RAINBOW_CHANCE = 0.01, RAINBOW_SCORE = 100, RAINBOW_FISH = 10; // 虹色の魚
+  const RAINBOW_TIME = 6;   // 虹色の魚をとると、この秒数のあいだスコアが2倍(レインボータイム)
 
   // オンラインランキングの保存先(Firebase Realtime Database の URL)。
   // 例: 'https://あなたのプロジェクト名-default-rtdb.firebaseio.com'
@@ -585,14 +621,20 @@ body {
     flap30: { name: 'つばさの練習', desc: 'つばさで30回ジャンプ', icon: '🪽' },
     revive1: { name: '九死に一生', desc: 'たまごで助かる', icon: '🥚' },
     maxspeed: { name: '最高速!', desc: 'スピードLv.' + SPDLV_MAX + 'に到達', icon: '⚡' },
-    level99: { name: 'みんな集合!', desc: 'レベル99をクリアする', icon: '🎉' }
+    level99: { name: 'みんな集合!', desc: 'レベル99をクリアする', icon: '🎉' },
+    gold1: { name: 'きらきら発見!', desc: '金の魚を1ぴきつかまえる', icon: '✨' },
+    gold10: { name: '黄金コレクター', desc: '金の魚を10ぴきつかまえる', icon: '🏅' },
+    rainbow1: { name: '虹をつかんだ!', desc: '虹色の魚を1ぴきつかまえる', icon: '🌈' },
+    rainbow5: { name: 'レインボーマスター', desc: '虹色の魚を5ひきつかまえる', icon: '👑' }
   };
   const ACH_ORDER = Object.keys(ACH_INFO);
 
   /* ---------- 永続データ ---------- */
   function loadProgress() {
     let p = { totalFish: 0, bestCombo: 0, totalFlaps: 0, revives: 0, unlocked: {}, skin: 'normal', clearedLevels: {}, companions: {}, levelScores: {},
-      endlessBest: { score: 0, dist: 0 }, endlessSent: 0, endlessSentName: '', playerName: '', deviceId: '' };
+      endlessBest: { score: 0, dist: 0 }, endlessSent: 0, endlessSentName: '', playerName: '', deviceId: '',
+      totalGold: 0, totalRainbow: 0,
+      dailyBest: { date: '', score: 0, dist: 0 }, dailySent: { date: '', score: 0, name: '' } };
     try {
       const raw = JSON.parse(localStorage.getItem('penguin-story-progress'));
       if (raw && typeof raw === 'object') {
@@ -601,7 +643,9 @@ body {
           clearedLevels: Object.assign({}, raw.clearedLevels),
           companions: Object.assign({}, raw.companions),
           levelScores: Object.assign({}, raw.levelScores),
-          endlessBest: Object.assign({ score: 0, dist: 0 }, raw.endlessBest)
+          endlessBest: Object.assign({ score: 0, dist: 0 }, raw.endlessBest),
+          dailyBest: Object.assign({ date: '', score: 0, dist: 0 }, raw.dailyBest),
+          dailySent: Object.assign({ date: '', score: 0, name: '' }, raw.dailySent)
         });
       }
     } catch (e) { /* 保存できない環境でも遊べます */ }
@@ -634,6 +678,7 @@ body {
   let wingT = 0, holding = false, deadT = 0, bannerT = 0, hintT = 0, shake = 0;
   let muted = false, fellInSea = false, curSlopeAngle = 0, goalLineX = Infinity;
   let score = 0, combo = 0, fishRun = 0, hasEgg = false, invincibleT = 0, slowT = 0;
+  let goldRun = 0, rainbowRun = 0, rainbowT = 0, flashT = 0, bestBeaten = false, lastMilestone = 0;
   const P = { x: PX0, vx: 0, h: 0, vh: 0, ground: true, flapUsed: false, coyote: 0, buffer: 0, flapT: 0, spin: 0, landT: 0 };
 
   try { muted = localStorage.getItem('penguin-mute') === '1'; } catch (e) { muted = false; }
@@ -648,7 +693,8 @@ body {
   const skinRowEl = $('skinRow'), mapListEl = $('mapList'), mapStatEl = $('mapStat');
   const menuEl = $('menu'), endlessEl = $('endless'), nameInput = $('nameInput');
   const rankPanel = $('rankPanel'), rankList = $('rankList'), rankStat = $('rankStat');
-  const rankInfoEl = $('rankInfo'), newrecEl = $('newrec');
+  const rankInfoEl = $('rankInfo'), newrecEl = $('newrec'), rareInfoEl = $('rareInfo');
+  const chipRainbow = $('chipRainbow'), rainbowBar = $('rainbowBar'), bestPill = $('bestPill'), bestNowEl = $('bestNow');
   const lvLabelEl = $('lvLabel'), goalWrapEl = $('goalWrap'), fGoalWrapEl = $('fGoalWrap');
 
   for (let i = 0; i < 70; i++) snow.push({ x: Math.random() * W, y: Math.random() * H, r: 1 + Math.random() * 2.2, s: 20 + Math.random() * 40, ph: Math.random() * 6 });
@@ -684,6 +730,12 @@ body {
   const sSafe = () => { tone(700, 1050, 0.08, 'triangle', 0.13); tone(1050, 1400, 0.09, 'triangle', 0.1, 0.06); };
   const sEgg = () => { tone(300, 700, 0.2, 'sine', 0.15); tone(700, 1200, 0.16, 'sine', 0.1, 0.1); };
   const sClear = () => [523, 659, 784, 1047, 1319].forEach((f, i) => tone(f, f, 0.16, 'triangle', 0.14, i * 0.09));
+  const sGold = () => [1047, 1319, 1568, 2093, 2637].forEach((f, i) => tone(f, f, 0.12, 'triangle', 0.13, i * 0.05));
+  const sRainbow = () => {
+    [523, 659, 784, 1047, 1319, 1568, 2093, 2637].forEach((f, i) => tone(f, f, 0.2, 'triangle', 0.14, i * 0.06));
+    [1047, 1568, 2093].forEach((f) => tone(f, f * 1.01, 0.7, 'sine', 0.08, 0.4));
+  };
+  const sMilestone = () => [784, 988, 1175].forEach((f, i) => tone(f, f, 0.1, 'square', 0.05, i * 0.07));
   function updateMuteLabel() {
     muteBtn.textContent = muted ? '音 オフ' : '音 オン';
     muteBtn.setAttribute('aria-pressed', muted ? 'true' : 'false');
@@ -812,7 +864,7 @@ body {
     failEl.hidden = true;
     storyEl.hidden = true;
     finaleEl.hidden = true;
-    chipWing.hidden = true; chipCombo.hidden = true; chipEgg.hidden = true;
+    chipWing.hidden = true; chipCombo.hidden = true; chipEgg.hidden = true; chipRainbow.hidden = true;
     hintEl.hidden = true;
   }
 
@@ -906,6 +958,11 @@ body {
     sinceLast = 0; nextGap = 420;
     terrainSinceLast = 0; terrainNextGap = 0;
     score = 0; combo = 0; fishRun = 0; hasEgg = false; invincibleT = 0; slowT = 0; fellInSea = false;
+    goldRun = 0; rainbowRun = 0; rainbowT = 0; flashT = 0; bestBeaten = false; lastMilestone = 0;
+    // エンドレスでは、じぶんのベストスコアをプレイ中も表示する(ぬいたら「ベスト更新!」)
+    bestPill.hidden = !(mode === 'endless' && progress.endlessBest.score > 0);
+    bestPill.classList.remove('beaten');
+    bestNowEl.textContent = progress.endlessBest.score;
     if (mode === 'endless') curGoal = Infinity;   // エンドレスにはゴールがない
     goalLineX = curGoal === Infinity ? Infinity : PX0 + curGoal * 50;
     lvLabelEl.textContent = mode === 'endless' ? 'ENDLESS' : 'LEVEL';
@@ -916,7 +973,7 @@ body {
     holding = false;
     curLvEl.textContent = L;
     distEl.textContent = '0'; goalMEl.textContent = curGoal; scoreEl.textContent = '0'; fishRunEl.textContent = '0'; lvEl.textContent = '1';
-    chipWing.hidden = true; chipCombo.hidden = true; chipEgg.hidden = true;
+    chipWing.hidden = true; chipCombo.hidden = true; chipEgg.hidden = true; chipRainbow.hidden = true;
     shake = 0;
   }
   function beginRun() {
@@ -992,7 +1049,7 @@ body {
       newAchEl.textContent = '🎉 新しい実績: ' + newlyUnlockedThisRun.map((id) => ACH_INFO[id].name).join('、') + ' を解除!';
     } else newAchEl.hidden = true;
     hudEl.hidden = true;
-    chipWing.hidden = true; chipCombo.hidden = true; chipEgg.hidden = true;
+    chipWing.hidden = true; chipCombo.hidden = true; chipEgg.hidden = true; chipRainbow.hidden = true;
     hintEl.hidden = true;
 
     stage.classList.remove('playing');
@@ -1002,18 +1059,23 @@ body {
     $('btnFailMap').textContent = endless ? 'メニューへ' : 'ちずへ';
     newrecEl.hidden = true;
     rankInfoEl.hidden = true;
+    // このプレイでとったレア魚
+    rareInfoEl.hidden = !(goldRun || rainbowRun);
+    rareInfoEl.textContent = '✨ 金の魚 ×' + goldRun + '　🌈 虹色の魚 ×' + rainbowRun;
     if (endless) {
       $('failTitle').textContent = fellInSea ? '海におちちゃった…' : 'ゲームオーバー';
       const prev = progress.endlessBest.score;
       if (score > prev) {
         progress.endlessBest = { score: score, dist: meters() };
-        saveProgress();
         newrecEl.textContent = prev > 0 ? '🎉 ベストスコア こうしん！' : '🎉 はじめての記録！';
-        newrecEl.hidden = false;
       } else {
         newrecEl.textContent = 'ベスト ' + prev + '(' + progress.endlessBest.dist + 'm)';
-        newrecEl.hidden = false;
       }
+      const day = dailyBest();
+      if (score > day.score) progress.dailyBest = { date: day.date, score: score, dist: meters() };
+      newrecEl.textContent += '　今日のベスト ' + progress.dailyBest.score;
+      newrecEl.hidden = false;
+      saveProgress();
       showRunRank();
     }
     failEl.hidden = false;
@@ -1030,7 +1092,7 @@ body {
     unlockIfMet('dist10', true || meters() >= 10);
     saveProgress();
     hudEl.hidden = true;
-    chipWing.hidden = true; chipCombo.hidden = true; chipEgg.hidden = true;
+    chipWing.hidden = true; chipCombo.hidden = true; chipEgg.hidden = true; chipRainbow.hidden = true;
     hintEl.hidden = true;
     if (curLevel >= TOTAL_LEVELS && firstClear) {
       progress.companions[curLevel] = true;
@@ -1078,11 +1140,21 @@ body {
 
   /* ---------- エンドレスのオンラインランキング ----------
      Firebase Realtime Database の REST API を使います(SDKなし)。
-     1台につき1件(scores/{端末ID})だけ保存し、その端末の自己ベストだけを上書きします。 */
-  let rankReq = 0, panelReq = 0;
+     1台につき1件だけ、自己ベストを保存します。
+       総合: scores/{端末ID}      今日: daily/{日付}/{端末ID}(日本時間の0時で日付がかわる) */
+  let rankReq = 0, panelReq = 0, rankTab = 'all';
   const rankingEnabled = () => !!RANKING_DB_URL;
   const rankBase = () => RANKING_DB_URL.replace(/\/+$/, '');
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+  // 「今日」は日本時間の0時で切りかわる(端末の時計の設定に関係なく、みんな同じ日付になる)
+  function todayKey() { return new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10); }
+  // 今日のベスト。日付がかわっていたら0にもどす
+  function dailyBest() {
+    const t = todayKey();
+    if (progress.dailyBest.date !== t) progress.dailyBest = { date: t, score: 0, dist: 0 };
+    return progress.dailyBest;
+  }
 
   function sanitizeName(s) {
     return Array.from(String(s || '').replace(/[\u0000-\u001f\u007f]/g, '').trim()).slice(0, NAME_MAX).join('').trim();
@@ -1107,30 +1179,42 @@ body {
     finally { clearTimeout(timer); }
   }
 
-  // ベストスコアをサーバーへ送る。'ok' 送信した / 'skip' 送るものがない / 'rejected' 受けつけられなかった / 'error' 通信失敗
-  async function flushPending() {
-    if (!rankingEnabled()) return 'skip';
-    const best = progress.endlessBest, name = playerName();
-    if (best.score <= 0) return 'skip';
-    if (progress.endlessSent >= best.score && progress.endlessSentName === name) return 'skip';
+  // 'ok' 送れた / 'rejected' 受けつけられなかった / 'error' 通信失敗
+  async function putScore(path, payload) {
     try {
-      const res = await rankFetch(rankBase() + '/scores/' + encodeURIComponent(deviceId()) + '.json', {
-        method: 'PUT',
-        body: JSON.stringify({ name: name, score: best.score, dist: best.dist })
-      });
-      if (res.ok) {
-        progress.endlessSent = best.score;
-        progress.endlessSentName = name;
-        saveProgress();
-        return 'ok';
-      }
+      const res = await rankFetch(rankBase() + path + '.json', { method: 'PUT', body: JSON.stringify(payload) });
+      if (res.ok) return 'ok';
       return res.status === 401 || res.status === 403 ? 'rejected' : 'error';
     } catch (e) { return 'error'; }
   }
 
-  // 上位 RANK_LIMIT 人を取得して、スコアの高い順にならべて返す
-  async function fetchRanking() {
-    const url = rankBase() + '/scores.json?orderBy=' + encodeURIComponent('"score"') + '&limitToLast=' + RANK_LIMIT;
+  // まだ送っていない記録(総合・今日)をサーバーへ送る。'ok' 送信した / 'skip' 送るものがない / 'rejected' / 'error'
+  async function flushPending() {
+    if (!rankingEnabled()) return 'skip';
+    const name = playerName(), id = encodeURIComponent(deviceId());
+    const results = [];
+    const best = progress.endlessBest;
+    if (best.score > 0 && (progress.endlessSent < best.score || progress.endlessSentName !== name)) {
+      const r = await putScore('/scores/' + id, { name: name, score: best.score, dist: best.dist });
+      if (r === 'ok') { progress.endlessSent = best.score; progress.endlessSentName = name; }
+      results.push(r);
+    }
+    const d = dailyBest(), ds = progress.dailySent;
+    if (d.score > 0 && (ds.date !== d.date || ds.score < d.score || ds.name !== name)) {
+      const r = await putScore('/daily/' + d.date + '/' + id, { name: name, score: d.score, dist: d.dist });
+      if (r === 'ok') progress.dailySent = { date: d.date, score: d.score, name: name };
+      results.push(r);
+    }
+    saveProgress();
+    if (results.includes('error')) return 'error';
+    if (results.includes('rejected')) return 'rejected';
+    return results.length ? 'ok' : 'skip';
+  }
+
+  // 上位 RANK_LIMIT 人を取得して、スコアの高い順にならべて返す(kind: 'all' 総合 / 'daily' 今日)
+  async function fetchRanking(kind) {
+    const path = kind === 'daily' ? '/daily/' + todayKey() : '/scores';
+    const url = rankBase() + path + '.json?orderBy=' + encodeURIComponent('"score"') + '&limitToLast=' + RANK_LIMIT;
     const res = await rankFetch(url);
     if (!res.ok) throw new Error('http ' + res.status);
     const data = await res.json();
@@ -1147,7 +1231,7 @@ body {
     return list;
   }
 
-  // ゲームオーバー画面: 送信して順位を表示する
+  // ゲームオーバー画面: 送信して、総合と今日の順位・「あと○点」を表示する
   async function showRunRank() {
     const my = ++rankReq;
     const show = (text, ok) => { rankInfoEl.textContent = text; rankInfoEl.className = ok ? 'ok' : ''; rankInfoEl.hidden = false; };
@@ -1155,25 +1239,36 @@ body {
     if (progress.endlessBest.score <= 0) return;
     show('🏆 ランキングに送信中…');
     const sent = await flushPending();
-    let list = null;
-    try { list = await fetchRanking(); } catch (e) { list = null; }
+    let all = null, day = null;
+    try { [all, day] = await Promise.all([fetchRanking('all'), fetchRanking('daily')]); } catch (e) { all = null; }
     if (my !== rankReq || phase !== 'fail') return;
-    if (!list) { show('ランキングにつながりませんでした(あとで自動でおくります)'); return; }
+    if (!all || !day) { show('ランキングにつながりませんでした(あとで自動でおくります)'); return; }
     if (sent === 'rejected') { show('ランキングに のせられませんでした'); return; }
-    const idx = list.findIndex((e) => e.id === deviceId());
-    if (idx >= 0) show('🏆 ランキング ' + (idx + 1) + '位！', true);
-    else show('ランキングけんがい(' + RANK_LIMIT + '位まで表示)');
+    const id = deviceId();
+    const sum = (label, list, hasScore) => {
+      if (!hasScore) return { text: label + ' きろくなし', hint: '', rank: 0 };
+      const idx = list.findIndex((e) => e.id === id);
+      if (idx < 0) return { text: label + ' けんがい', hint: '', rank: 0 };
+      const hint = idx > 0 ? 'あと' + (list[idx - 1].score - list[idx].score + 1) + '点で' + label + idx + '位!' : '';
+      return { text: label + ' ' + (idx + 1) + '位', hint: hint, rank: idx + 1 };
+    };
+    const a = sum('総合', all, true), d = sum('今日', day, dailyBest().score > 0);
+    let text = '🏆 ' + a.text + '　📅 ' + d.text;
+    // つぎの目標: 今日の順位のほうが近いので先に出す。どちらも1位ならお祝い
+    if (d.hint) text += '\n👉 ' + d.hint;
+    else if (a.hint) text += '\n👉 ' + a.hint;
+    else if (a.rank === 1 && d.rank === 1) text += '\n🎉 総合も今日も1位！';
+    show(text, (a.rank > 0 && a.rank <= 3) || (d.rank > 0 && d.rank <= 3));
   }
 
-  function renderRankRows(list, showEmpty) {
+  function renderRankRows(list, mine, emptyMsg) {
     const me = progress.deviceId;
     const medal = ['🥇', '🥈', '🥉'];
     let html = list.map((e, i) =>
       '<div class="rankrow' + (e.id === me ? ' me' : '') + '"><span class="no">' + (medal[i] || (i + 1)) + '</span>' +
       '<span class="nm">' + esc(e.name) + (e.id === me ? '(あなた)' : '') + '</span>' +
       '<span class="sc">' + e.score + '<span>' + e.dist + 'm</span></span></div>').join('');
-    if (!list.length && showEmpty !== false) html = '<p class="rankstat">まだだれもいないよ。いちばんのりをめざそう！</p>';
-    const mine = progress.endlessBest;
+    if (!list.length && emptyMsg) html = '<p class="rankstat">' + emptyMsg + '</p>';
     if (mine.score > 0 && !list.some((e) => e.id === me)) {
       html += '<div class="rankrow me"><span class="no">—</span><span class="nm">' + esc(playerName()) + '(あなた)</span>' +
         '<span class="sc">' + mine.score + '<span>' + mine.dist + 'm</span></span></div>';
@@ -1183,27 +1278,34 @@ body {
 
   async function loadRanking() {
     const my = ++panelReq;
+    const daily = rankTab === 'daily';
+    $('tabAll').setAttribute('aria-pressed', daily ? 'false' : 'true');
+    $('tabDaily').setAttribute('aria-pressed', daily ? 'true' : 'false');
+    const mine = daily ? dailyBest() : progress.endlessBest;
+    const emptyMsg = daily ? '今日はまだだれもいないよ。いちばんのりをめざそう！' : 'まだだれもいないよ。いちばんのりをめざそう！';
     rankList.innerHTML = '';
     if (!rankingEnabled()) {
       rankStat.textContent = 'オンラインランキングは まだ設定されていません。この端末のベストだけ表示しています。';
-      renderRankRows([], false);
+      renderRankRows([], mine, '');
       return;
     }
     rankStat.textContent = 'よみこみ中…';
     await flushPending();
     try {
-      const list = await fetchRanking();
+      const list = await fetchRanking(rankTab);
       if (my !== panelReq) return;
-      rankStat.textContent = 'スコアの高い順(上位' + RANK_LIMIT + '人)';
-      renderRankRows(list, true);
+      rankStat.textContent = daily ? '今日のランキング(日本時間の0時にリセット)' : 'スコアの高い順(上位' + RANK_LIMIT + '人)';
+      renderRankRows(list, mine, emptyMsg);
     } catch (e) {
       if (my !== panelReq) return;
       rankStat.textContent = 'つうしんできませんでした。電波をたしかめて「こうしん」をおしてね。';
     }
   }
-  function openRanking() { rankPanel.hidden = false; loadRanking(); }
+  function openRanking(tab) { if (tab) rankTab = tab; rankPanel.hidden = false; loadRanking(); }
   $('rankReload').addEventListener('click', loadRanking);
   $('rankClose').addEventListener('click', () => { rankPanel.hidden = true; panelReq++; });
+  $('tabAll').addEventListener('click', () => { rankTab = 'all'; loadRanking(); });
+  $('tabDaily').addEventListener('click', () => { rankTab = 'daily'; loadRanking(); });
 
   /* ---------- 入力 ---------- */
   function jump() {
@@ -1315,7 +1417,13 @@ body {
     }
     if (Math.random() < FISH_CHANCE) {
       const n = 1 + (Math.random() < 0.3 ? 1 : 0) + (Math.random() < 0.12 ? 1 : 0);
-      for (let i = 0; i < n; i++) fish.push({ x: ox + nextGap * (0.12 + i * 0.2 + Math.random() * 0.08), y: 40 + Math.random() * 130, t: Math.random() * 6 });
+      for (let i = 0; i < n; i++) fish.push({ x: ox + nextGap * (0.12 + i * 0.2 + Math.random() * 0.08), y: 40 + Math.random() * 130, t: Math.random() * 6, kind: 'normal' });
+    }
+    // レア魚: 画面に同時に1ぴきまで。高い所に出るので、長おしジャンプでとりにいく
+    if (fish.every((f) => f.kind === 'normal' || f.got)) {
+      const r = Math.random();
+      if (r < RAINBOW_CHANCE) fish.push({ x: ox + nextGap * 0.5, y: 130 + Math.random() * 55, t: Math.random() * 6, kind: 'rainbow' });
+      else if (r < RAINBOW_CHANCE + GOLD_CHANCE) fish.push({ x: ox + nextGap * 0.5, y: 85 + Math.random() * 85, t: Math.random() * 6, kind: 'gold' });
     }
   }
 
@@ -1372,12 +1480,61 @@ body {
     chipCombo.hidden = combo < 2;
     if (combo >= 2) comboTxt.textContent = 'コンボ ×' + combo;
     chipEgg.hidden = !hasEgg;
+    chipRainbow.hidden = rainbowT <= 0;
+    if (rainbowT > 0) rainbowBar.style.width = (rainbowT / RAINBOW_TIME) * 100 + '%';
   }
 
-  function checkSkinUnlock() {
-    const before = SKINS.filter((s) => progress.totalFish - 1 >= s.need).length;
+  // beforeTotal: 魚をとる前の合計。viaHint が true のときは、バナーが出ているのでヒントで知らせる
+  function checkSkinUnlock(beforeTotal, viaHint) {
+    const before = SKINS.filter((s) => beforeTotal >= s.need).length;
     const after = SKINS.filter((s) => progress.totalFish >= s.need).length;
-    if (after > before) showBanner(SKINS[after - 1].name + ' 解放!', 'gold', 1.3);
+    if (after > before) {
+      if (viaHint) showHint(SKINS[after - 1].name + ' 解放!', 2.6);
+      else showBanner(SKINS[after - 1].name + ' 解放!', 'gold', 1.3);
+    }
+  }
+
+  // 得点をふやす(レインボータイム中は2倍。ただし虹色の魚そのものの得点は2倍にしない)
+  function addScore(n, noBonus) {
+    score += n * (rainbowT > 0 && !noBonus ? 2 : 1);
+    scoreEl.textContent = score;
+  }
+  // 魚を n ひきぶん とった。合計・実績・スキン解放をまとめて処理する
+  function collectFish(n, viaHint) {
+    const before = progress.totalFish || 0;
+    progress.totalFish = before + n;
+    fishRun += n; fishRunEl.textContent = fishRun;
+    unlockIfMet('fish10', progress.totalFish >= 10);
+    unlockIfMet('fish50', progress.totalFish >= 50);
+    unlockIfMet('fish100', progress.totalFish >= 100);
+    checkSkinUnlock(before, viaHint);
+  }
+  const RAINBOW_COLORS = ['#FF5F6D', '#FFC371', '#FFF37A', '#7BED9F', '#70A1FF', '#C56CF0'];
+  function collectRare(f, fy) {
+    const rainbow = f.kind === 'rainbow';
+    if (rainbow) {
+      addScore(RAINBOW_SCORE, true);
+      collectFish(RAINBOW_FISH, true);
+      rainbowRun++; progress.totalRainbow = (progress.totalRainbow || 0) + 1;
+      rainbowT = RAINBOW_TIME;
+      flashT = reduceMotion ? 0 : 0.45;
+      showBanner('にじいろフィッシュ!! +' + RAINBOW_SCORE, 'rainbow', 1.5);
+      showHint('🌈 ' + RAINBOW_TIME + '秒間、スコア2倍！', 2.6);
+      sRainbow();
+      unlockIfMet('rainbow1', progress.totalRainbow >= 1);
+      unlockIfMet('rainbow5', progress.totalRainbow >= 5);
+      for (let i = 0; i < 40; i++) parts.push({ x: f.x, y: fy, vx: (Math.random() - 0.5) * 460, vy: (Math.random() - 0.5) * 460, life: 0.9, s: 3.4, c: RAINBOW_COLORS[i % RAINBOW_COLORS.length], g: 120 });
+    } else {
+      addScore(GOLD_SCORE);
+      collectFish(GOLD_FISH, true);
+      goldRun++; progress.totalGold = (progress.totalGold || 0) + 1;
+      showBanner('ゴールデンフィッシュ! +' + GOLD_SCORE * (rainbowT > 0 ? 2 : 1), 'gold', 1.1);
+      sGold();
+      unlockIfMet('gold1', progress.totalGold >= 1);
+      unlockIfMet('gold10', progress.totalGold >= 10);
+      for (let i = 0; i < 24; i++) parts.push({ x: f.x, y: fy, vx: (Math.random() - 0.5) * 340, vy: (Math.random() - 0.5) * 340, life: 0.7, s: 3, c: i % 2 ? '#FFD23F' : '#FFF3B0', g: 160 });
+    }
+    saveProgress();
   }
 
   function update(rawDt) {
@@ -1387,6 +1544,7 @@ body {
 
     tt += dt;
     if (shake > 0) shake -= rawDt;
+    if (flashT > 0) flashT -= rawDt;
     if (bannerT > 0) { bannerT -= rawDt; if (bannerT <= 0) bannerEl.className = ''; }
     if (hintT > 0) { hintT -= rawDt; if (hintT <= 0) hintEl.hidden = true; }
 
@@ -1399,6 +1557,7 @@ body {
 
     if (phase === 'play') {
       if (mode === 'endless') curLevel = endlessLevelAt(meters());
+      if (rainbowT > 0) rainbowT = Math.max(0, rainbowT - dt);
       // 坂のスピード効果(のぼりはおそく、くだりははやく)
       const ahead = groundOffsetAt(P.x + 34), here = groundOffsetAt(P.x - 34);
       const slope = ahead - here;
@@ -1436,7 +1595,7 @@ body {
             unlockIfMet('combo5', progress.bestCombo >= 5);
             unlockIfMet('combo10', progress.bestCombo >= 10);
             saveProgress();
-            score += NEARMISS_BASE * combo;
+            addScore(NEARMISS_BASE * combo);
             showBanner(combo >= 2 ? 'コンボ ×' + combo + '!' : 'きわどい!', 'safe', 0.65);
             sSafe();
             if (!reduceMotion) slowT = SLOW_DURATION;
@@ -1444,9 +1603,8 @@ body {
             for (let i = 0; i < 6; i++) parts.push({ x: P.x, y: gy - P.h - 24, vx: (Math.random() - 0.5) * 200, vy: -60 - Math.random() * 120, life: 0.4, s: 2.6, c: '#FF9FE0', g: 260 });
           } else {
             combo = 0;
-            score += CLEAR_BASE;
+            addScore(CLEAR_BASE);
           }
-          scoreEl.textContent = score;
 
           const nl = Math.min(SPDLV_MAX, 1 + Math.floor(cleared / OBST_PER_LV));
           if (nl > spdLv) {
@@ -1493,18 +1651,18 @@ body {
         const gy = groundYAt(f.x);
         const cx = P.x, cy = groundYAt(P.x) - P.h - 28;
         const fy = gy - f.y + Math.sin(f.t * 3.4) * 3;
-        if (!f.got && Math.hypot(f.x - cx, fy - cy) < 26) {
+        const rare = f.kind === 'gold' || f.kind === 'rainbow';
+        if (!f.got && Math.hypot(f.x - cx, fy - cy) < (rare ? 34 : 26)) {
           f.got = true;
-          fishRun++; fishRunEl.textContent = fishRun;
-          progress.totalFish = (progress.totalFish || 0) + 1;
-          score += FISH_SCORE; scoreEl.textContent = score;
-          sFish();
-          unlockIfMet('fish10', progress.totalFish >= 10);
-          unlockIfMet('fish50', progress.totalFish >= 50);
-          unlockIfMet('fish100', progress.totalFish >= 100);
-          checkSkinUnlock();
-          saveProgress();
-          for (let i = 0; i < 8; i++) parts.push({ x: f.x, y: fy, vx: (Math.random() - 0.5) * 180, vy: -40 - Math.random() * 120, life: 0.4, s: 2.2, c: '#8FD8FF', g: 200 });
+          if (rare) {
+            collectRare(f, fy);
+          } else {
+            addScore(FISH_SCORE);
+            collectFish(1);
+            sFish();
+            saveProgress();
+            for (let i = 0; i < 8; i++) parts.push({ x: f.x, y: fy, vx: (Math.random() - 0.5) * 180, vy: -40 - Math.random() * 120, life: 0.4, s: 2.2, c: '#8FD8FF', g: 200 });
+          }
         }
       }
       fish = fish.filter((f) => !f.got && f.x > -30);
@@ -1517,6 +1675,26 @@ body {
       }
 
       distEl.textContent = meters();
+
+      if (mode === 'endless') {
+        // 100mごとのお祝い
+        const m = meters();
+        if (m >= lastMilestone + ENDLESS_MILESTONE_M) {
+          lastMilestone = Math.floor(m / ENDLESS_MILESTONE_M) * ENDLESS_MILESTONE_M;
+          showBanner(lastMilestone + 'm とっぱ!', 'warm', 1.0);
+          sMilestone();
+        }
+        // じぶんのベストスコアをぬいたら知らせる
+        if (!bestPill.hidden) {
+          if (!bestBeaten && score > progress.endlessBest.score) {
+            bestBeaten = true;
+            bestPill.classList.add('beaten');
+            showBanner('ベスト更新!', 'gold', 1.2);
+            sItem();
+          }
+          if (bestBeaten) bestNowEl.textContent = score;
+        }
+      }
 
       if (invincibleT > 0) {
         invincibleT -= dt;
@@ -1900,19 +2078,53 @@ body {
     }
     ctx.restore();
   }
+  function drawSparkle(x, y, r, a) {
+    ctx.globalAlpha = a;
+    ctx.beginPath();
+    ctx.moveTo(x, y - r); ctx.quadraticCurveTo(x, y, x + r, y); ctx.quadraticCurveTo(x, y, x, y + r);
+    ctx.quadraticCurveTo(x, y, x - r, y); ctx.quadraticCurveTo(x, y, x, y - r);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+  }
   function drawFish(f) {
     const gy = groundYAt(f.x);
     const y = gy - f.y + Math.sin(f.t * 3.4) * 3;
     const wag = Math.sin(f.t * 10) * 0.5;
+    const gold = f.kind === 'gold', rainbow = f.kind === 'rainbow';
     ctx.save();
     ctx.translate(f.x, y);
-    ctx.fillStyle = 'rgba(150,205,255,0.28)';
-    ctx.beginPath(); ctx.arc(0, 0, 20, 0, Math.PI * 2); ctx.fill();
+    if (gold || rainbow) {
+      // レア魚: 大きく光って、まわりでキラキラする
+      const sc = rainbow ? 1.7 : 1.4;
+      const hue = (f.t * 220) % 360;
+      const glow = rainbow ? 'hsla(' + hue + ',100%,70%,0.6)' : 'rgba(255,214,64,0.6)';
+      const gg = ctx.createRadialGradient(0, 0, 4, 0, 0, 40);
+      gg.addColorStop(0, glow);
+      gg.addColorStop(1, rainbow ? 'hsla(' + hue + ',100%,70%,0)' : 'rgba(255,214,64,0)');
+      ctx.fillStyle = gg;
+      ctx.beginPath(); ctx.arc(0, 0, 40, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = rainbow ? 'hsl(' + ((hue + 120) % 360) + ',100%,85%)' : '#FFF6C2';
+      for (let i = 0; i < 3; i++) {
+        const a = f.t * 2.2 + i * 2.1;
+        drawSparkle(Math.cos(a) * 30, Math.sin(a * 1.3) * 26, 4 + Math.sin(f.t * 8 + i) * 1.5, 0.6 + 0.4 * Math.sin(f.t * 9 + i * 2));
+      }
+      ctx.scale(sc, sc);
+    } else {
+      ctx.fillStyle = 'rgba(150,205,255,0.28)';
+      ctx.beginPath(); ctx.arc(0, 0, 20, 0, Math.PI * 2); ctx.fill();
+    }
     ctx.rotate(wag * 0.15);
-    ctx.fillStyle = '#8FCBEE';
+    ctx.fillStyle = gold ? '#F2A900' : rainbow ? 'hsl(' + ((f.t * 220 + 60) % 360) + ',90%,60%)' : '#8FCBEE';
     ctx.beginPath();
     ctx.moveTo(-11, 0); ctx.lineTo(-18, -7 + wag * 3); ctx.lineTo(-18, 7 - wag * 3); ctx.closePath(); ctx.fill();
-    ctx.fillStyle = '#A8DEFF';
+    if (rainbow) {
+      // 虹色の体: 色の帯を重ねる
+      const bg = ctx.createLinearGradient(-12, 0, 12, 0);
+      RAINBOW_COLORS.forEach((c, i) => bg.addColorStop(i / (RAINBOW_COLORS.length - 1), c));
+      ctx.fillStyle = bg;
+    } else {
+      ctx.fillStyle = gold ? '#FFD23F' : '#A8DEFF';
+    }
     ctx.beginPath(); ctx.ellipse(0, 0, 12, 8, 0, 0, Math.PI * 2); ctx.fill();
     ctx.lineWidth = 1.6; ctx.strokeStyle = 'rgba(35,28,48,0.35)'; ctx.stroke();
     ctx.fillStyle = '#FFFFFF';
@@ -2065,6 +2277,21 @@ body {
       for (const s of snow) { ctx.beginPath(); ctx.arc(s.x - 10, s.y - 6, s.r * 0.7, 0, Math.PI * 2); ctx.fill(); }
     }
     ctx.restore();
+
+    // 虹色の魚: 白いフラッシュと、レインボータイム中の画面のふち
+    if (flashT > 0) {
+      ctx.fillStyle = 'rgba(255,255,255,' + Math.min(0.6, flashT * 1.6) + ')';
+      ctx.fillRect(0, 0, W, H);
+    }
+    if (rainbowT > 0 && phase === 'play') {
+      const g = ctx.createLinearGradient(0, 0, W, 0);
+      RAINBOW_COLORS.forEach((c, i) => g.addColorStop(i / (RAINBOW_COLORS.length - 1), c));
+      ctx.globalAlpha = reduceMotion ? 0.6 : 0.55 + 0.25 * Math.sin(tt * 8);
+      ctx.strokeStyle = g;
+      ctx.lineWidth = 10;
+      ctx.strokeRect(5, 5, W - 10, H - 10);
+      ctx.globalAlpha = 1;
+    }
   }
 
   /* ---------- サイズ調整とループ ---------- */
